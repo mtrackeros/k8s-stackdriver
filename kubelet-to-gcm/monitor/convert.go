@@ -25,3 +25,8 @@ func Float64Ptr(f float64) *float64 {
 func Int64Ptr(i int64) *int64 {
 	return &i
 }
+
+// Uint64Ptr gives a pointer to a variable with the same value as u.
+func Uint64Ptr(u uint64) *uint64 {
+	return &u
+}

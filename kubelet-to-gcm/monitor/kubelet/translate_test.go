@@ -25,6 +25,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
+
+	"github.com/GoogleCloudPlatform/k8s-stackdriver/kubelet-to-gcm/monitor"
 )
 
 const (
@@ -297,6 +299,59 @@ func TestTranslator(t *testing.T) {
 		if tc.ExpectedTSCount != len(tsReq.TimeSeries) {
 			t.Errorf("Expected %d TimeSeries, got %d", tc.ExpectedTSCount, len(tsReq.TimeSeries))
 		}
+	}
+}
+
+func TestTranslator_NilFields(t *testing.T) {
+	summary := &stats.Summary{
+		Node: stats.NodeStats{
+			StartTime: metav1.NewTime(time.Now()),
+			Memory: &stats.MemoryStats{
+				Time:            metav1.NewTime(time.Now().Add(time.Second)),
+				WorkingSetBytes: monitor.Uint64Ptr(100),
+				PageFaults:      monitor.Uint64Ptr(10),
+				MajorPageFaults: nil, // This would cause panic in translateMemory
+			},
+			Fs: &stats.FsStats{
+				CapacityBytes: monitor.Uint64Ptr(1000),
+				UsedBytes:     monitor.Uint64Ptr(500),
+			},
+			CPU: &stats.CPUStats{
+				Time:                 metav1.NewTime(time.Now().Add(time.Second)),
+				UsageCoreNanoSeconds: monitor.Uint64Ptr(100),
+			},
+		},
+		Pods: []stats.PodStats{
+			{
+				PodRef: stats.PodReference{Name: "test-pod", Namespace: "test-ns"},
+				Containers: []stats.ContainerStats{
+					{
+						Name:      "test-container",
+						StartTime: metav1.NewTime(time.Now()),
+						CPU: &stats.CPUStats{
+							Time:                 metav1.NewTime(time.Now().Add(time.Second)),
+							UsageCoreNanoSeconds: monitor.Uint64Ptr(100),
+						},
+						Memory: &stats.MemoryStats{
+							Time:            metav1.NewTime(time.Now().Add(time.Second)),
+							WorkingSetBytes: monitor.Uint64Ptr(100),
+						},
+						Rootfs: &stats.FsStats{
+							UsedBytes: nil, // This would cause panic in containerTranslateFS
+						},
+						Logs: &stats.FsStats{
+							UsedBytes: nil, // This would cause panic in containerTranslateFS
+						},
+					},
+				},
+			},
+		},
+	}
+
+	translator := NewTranslator("zone", "project", "cluster", "location", "instance", "id", "k8s_", map[string]string{}, time.Minute)
+	_, err := translator.Translate(summary)
+	if err != nil {
+		t.Errorf("Translate failed: %v", err)
 	}
 }
 

@@ -456,10 +456,10 @@ func translateCPU(cpu *stats.CPUStats, tsFactory *timeSeriesFactory, startTime t
 
 func containerTranslateFS(volume string, rootfs *stats.FsStats, logs *stats.FsStats, tsFactory *timeSeriesFactory, startTime time.Time) ([]*v3.TimeSeries, error) {
 	var combinedUsage uint64
-	if rootfs != nil {
+	if rootfs != nil && rootfs.UsedBytes != nil {
 		combinedUsage = *rootfs.UsedBytes
 	}
-	if logs != nil {
+	if logs != nil && logs.UsedBytes != nil {
 		combinedUsage = combinedUsage + *logs.UsedBytes
 	}
 
@@ -533,7 +533,7 @@ func translateMemory(memory *stats.MemoryStats, tsFactory *timeSeriesFactory, st
 			}, startTime, memory.Time.Time, pageFaultsMD.MetricKind)
 			timeSeries = append(timeSeries, tsFactory.newTimeSeries(majorPageFaultLabels, pageFaultsMD, majorPFPoint))
 		}
-		if memory.PageFaults != nil {
+		if memory.PageFaults != nil && memory.MajorPageFaults != nil {
 			// Minor page faults.
 			minorPFPoint := tsFactory.newPoint(&v3.TypedValue{
 				Int64Value:      monitor.Int64Ptr(int64(*memory.PageFaults - *memory.MajorPageFaults)),

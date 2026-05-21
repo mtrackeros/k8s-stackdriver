@@ -98,6 +98,9 @@ func (c *Client) doRequestAndParse(req *http.Request) (*Metrics, error) {
 	if err != nil {
 		return nil, err
 	}
+	if response == nil {
+		return nil, fmt.Errorf("empty response from controller")
+	}
 	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {

@@ -44,6 +44,10 @@ type MetricsSource interface {
 
 // Once polls the backend and puts the data to the given service one time.
 func Once(src MetricsSource, gcm *v3.Service) {
+	if gcm == nil {
+		log.Warningf("GCM service is nil, cannot push metrics")
+		return
+	}
 	scrapeTimestamp := time.Now()
 	req, err := src.GetTimeSeriesReq()
 	if err != nil {
