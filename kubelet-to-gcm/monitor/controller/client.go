@@ -19,11 +19,11 @@ package controller
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/k8s-stackdriver/kubelet-to-gcm/monitor/util"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 )
@@ -72,6 +72,12 @@ func NewMetrics(body []byte) (*Metrics, error) {
 	return metrics, nil
 }
 
+const (
+	// maxResponseBodySize is the maximum size of the response body we will read.
+	// 10MB is more than enough for most prometheus metrics responses.
+	maxResponseBodySize = 10 * 1024 * 1024
+)
+
 // Client queries metrics from the controller process.
 type Client struct {
 	client     *http.Client
@@ -99,7 +105,7 @@ func (c *Client) doRequestAndParse(req *http.Request) (*Metrics, error) {
 		return nil, err
 	}
 	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := util.ReadWithLimit(response.Body, maxResponseBodySize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body - %v", err)
 	}
