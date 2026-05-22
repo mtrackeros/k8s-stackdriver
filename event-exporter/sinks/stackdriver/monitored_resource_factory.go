@@ -74,7 +74,15 @@ func (f *monitoredResourceFactory) resourceFromEvent(event *corev1.Event) *sd.Mo
 
 	switch event.InvolvedObject.Kind {
 	case pod:
-		monitoredResource = f.buildPodMonitoredResource(event)
+		// The event's own metadata.namespace is the RBAC-enforced source
+		// of truth for where the event was created. Only emit a pod-scoped
+		// resource when the involved object's namespace agrees with it;
+		// otherwise fall back to the default cluster-scoped resource.
+		if event.Namespace != "" && event.Namespace == event.InvolvedObject.Namespace {
+			monitoredResource = f.buildPodMonitoredResource(event)
+		} else {
+			monitoredResource = f.defaultResource
+		}
 	case node:
 		monitoredResource = f.buildNodeMonitoredResource(event)
 	default:
@@ -86,7 +94,7 @@ func (f *monitoredResourceFactory) resourceFromEvent(event *corev1.Event) *sd.Mo
 func (f *monitoredResourceFactory) buildPodMonitoredResource(event *corev1.Event) *sd.MonitoredResource {
 	labels := copyMap(f.commonLabels)
 	labels[podName] = event.InvolvedObject.Name
-	labels[namespaceName] = event.InvolvedObject.Namespace
+	labels[namespaceName] = event.Namespace
 
 	return &sd.MonitoredResource{
 		Type:   k8sPod,
