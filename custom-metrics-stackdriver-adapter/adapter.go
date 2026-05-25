@@ -36,10 +36,13 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	openapispec "k8s.io/kube-openapi/pkg/validation/spec"
 	coreclient "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/metadata"
+	"k8s.io/client-go/metadata/metadatainformer"
 	customexternalmetrics "sigs.k8s.io/custom-metrics-apiserver/pkg/apiserver"
 	"sigs.k8s.io/custom-metrics-apiserver/pkg/provider"
 
 	"k8s.io/apimachinery/pkg/labels"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/component-base/logs"
 	"k8s.io/klog"
@@ -52,6 +55,7 @@ import (
 )
 
 const (
+	defaultResync = 0
 	defaultExternalMetricsCacheSize = 300
 	// This is only metric info and likely to be much smaller than separate metrics of each kind above
 	defaultMetricKindCacheSize = 25
@@ -167,15 +171,28 @@ func (sa *StackdriverAdapter) withCoreMetrics(translator *translator.Translator)
 		return err
 	}
 
-	podInformer, nil := informers.ForResource(corev1.SchemeGroupVersion.WithResource("pods"))
+	config, err := sa.ClientConfig()
 	if err != nil {
 		return err
 	}
+	metadataClient, err := metadata.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+	metadataInformers := metadatainformer.NewFilteredSharedInformerFactory(metadataClient, defaultResync, corev1.NamespaceAll, func(options *metav1.ListOptions) {
+		options.FieldSelector = "status.phase=Running"
+	})
+	podInformer := metadataInformers.ForResource(corev1.SchemeGroupVersion.WithResource("pods"))
 
 	nodes := informers.Core().V1().Nodes()
 	if err := api.Install(provider, podInformer.Lister(), nodes.Lister(), server.GenericAPIServer, []labels.Requirement{}); err != nil {
 		return err
 	}
+
+	server.GenericAPIServer.AddPostStartHookOrDie("custom-metrics-stackdriver-adapter-metadata-informer", func(context genericapiserver.PostStartHookContext) error {
+		metadataInformers.Start(context.Done())
+		return nil
+	})
 
 	return nil
 }
