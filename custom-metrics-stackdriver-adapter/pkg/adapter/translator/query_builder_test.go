@@ -1585,3 +1585,41 @@ func TestTranslator_GetMetricKind_CacheKeyIsolation(t *testing.T) {
 		t.Errorf("metricKindCache.get(%v) = true, want false", keyDefault)
 	}
 }
+
+func TestTranslator_QueryBuilder_FilterInjection_Prevention(t *testing.T) {
+	translator, _ :=
+		NewFakeTranslator(2*time.Minute, time.Minute, "my-project", "my-cluster", "my-zone", time.Date(2017, 1, 2, 13, 2, 0, 0, time.UTC), true)
+
+	allowedLabelPrefixes := []string{"metric.labels"}
+	allowedFullLabelNames := []string{}
+
+	// 1. Test 'In' operator with single unquoted element containing injection payload.
+	reqIn, err := labels.NewRequirement("metric.labels.custom", selection.In, []string{"safedummy"})
+	if err != nil {
+		t.Fatalf("Failed to create requirement: %v", err)
+	}
+	selectorIn := labels.NewSelector().Add(*reqIn)
+	filterIn, _, err := translator.filterForSelector(selectorIn, allowedLabelPrefixes, allowedFullLabelNames)
+	if err != nil {
+		t.Fatalf("Failed to build filter: %v", err)
+	}
+	expectedFilterIn := "metric.labels.custom = \"safedummy\""
+	if filterIn != expectedFilterIn {
+		t.Errorf("Expected filter: %s, got: %s", expectedFilterIn, filterIn)
+	}
+
+	// 2. Test 'NotIn' operator with single unquoted element.
+	reqNotIn, err := labels.NewRequirement("metric.labels.custom", selection.NotIn, []string{"safedummy"})
+	if err != nil {
+		t.Fatalf("Failed to create requirement: %v", err)
+	}
+	selectorNotIn := labels.NewSelector().Add(*reqNotIn)
+	filterNotIn, _, err := translator.filterForSelector(selectorNotIn, allowedLabelPrefixes, allowedFullLabelNames)
+	if err != nil {
+		t.Fatalf("Failed to build filter: %v", err)
+	}
+	expectedFilterNotIn := "metric.labels.custom != \"safedummy\""
+	if filterNotIn != expectedFilterNotIn {
+		t.Errorf("Expected filter: %s, got: %s", expectedFilterNotIn, filterNotIn)
+	}
+}
