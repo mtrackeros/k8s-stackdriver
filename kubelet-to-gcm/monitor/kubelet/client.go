@@ -57,6 +57,9 @@ func (k *Client) doRequestAndUnmarshal(client *http.Client, req *http.Request, v
 	if err != nil {
 		return err
 	}
+	if response == nil {
+		return fmt.Errorf("empty response from kubelet")
+	}
 	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
