@@ -63,13 +63,7 @@ func Once(src MetricsSource, gcm *v3.Service) {
 		if empty, err := createCall.Do(); err != nil {
 			log.Warningf("Failed to write time series data, empty: %v, err: %v", empty, err)
 			observeFailedRequest(len(subReq.TimeSeries))
-			jsonReq, err := subReq.MarshalJSON()
-			if err != nil {
-				log.Warningf("Failed to marshal time series as JSON")
-				return
-			}
-			log.Warningf("JSON GCM: %s", string(jsonReq[:]))
-			return
+			continue
 		}
 		log.V(4).Infof("Successfully wrote TimeSeries data for %s to GCM v3 API.", src.Name())
 		observeSuccessfullRequest(len(subReq.TimeSeries))
