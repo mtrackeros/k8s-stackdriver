@@ -200,6 +200,16 @@ func main() {
 		cmd.OpenAPIConfig.Info.Version = "1.0.0"
 	}
 
+	if cmd.OpenAPIV3Config == nil {
+		namer := openapinamer.NewDefinitionNamer(api.Scheme, customexternalmetrics.Scheme)
+		cmd.OpenAPIV3Config = genericapiserver.DefaultOpenAPIV3Config(generatedopenapi.GetOpenAPIDefinitions, namer)
+		cmd.OpenAPIV3Config.GetDefinitionName = func(name string) (string, openapispec.Extensions) {
+			return getDefinitionName(namer, name)
+		}
+		cmd.OpenAPIV3Config.Info.Title = "custom-metrics-stackdriver-adapter"
+		cmd.OpenAPIV3Config.Info.Version = "1.0.0"
+	}
+
 	flags := cmd.Flags()
 	klog.InitFlags(flag.CommandLine)
 	flags.AddGoFlagSet(flag.CommandLine)
