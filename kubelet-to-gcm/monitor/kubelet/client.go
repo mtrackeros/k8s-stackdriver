@@ -19,6 +19,7 @@ package kubelet
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 
@@ -46,7 +47,7 @@ func NewClient(host string, port uint, client *http.Client, useAuthPort bool) (*
 	if useAuthPort {
 		protocol = "https"
 	}
-	urlStr := fmt.Sprintf("%s://%s:%d/stats/summary", protocol, host, port)
+	urlStr := fmt.Sprintf("%s://%s/stats/summary", protocol, net.JoinHostPort(util.NormalizeHost(host), fmt.Sprint(port)))
 	summaryURL, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, err

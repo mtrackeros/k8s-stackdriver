@@ -19,6 +19,7 @@ package util
 import (
 	"errors"
 	"io"
+	"strings"
 )
 
 var (
@@ -38,4 +39,15 @@ func ReadWithLimit(r io.Reader, limit int64) ([]byte, error) {
 		return nil, ErrBodyTooLarge
 	}
 	return data, nil
+}
+
+// NormalizeHost handles host strings that may already be bracketed (like IPv6).
+// net.JoinHostPort expects a raw IP or hostname; if it receives a bracketed IPv6,
+// it will double-bracket it.
+func NormalizeHost(host string) string {
+	host = strings.TrimSpace(host)
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+		return host[1 : len(host)-1]
+	}
+	return host
 }
