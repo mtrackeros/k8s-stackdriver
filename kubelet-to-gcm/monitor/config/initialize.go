@@ -18,17 +18,20 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/k8s-stackdriver/kubelet-to-gcm/monitor"
+	"github.com/GoogleCloudPlatform/k8s-stackdriver/kubelet-to-gcm/monitor/util"
 )
 
 const (
 	gceMetaDataEndpoint = "http://169.254.169.254"
 	gceMetaDataPrefix   = "/computeMetadata/v1"
+	// maxResponseBodySize is the maximum size of the response body we will read.
+	// 10MB is more than enough for GCE metadata responses.
+	maxResponseBodySize = 10 * 1024 * 1024
 )
 
 // NewConfigs returns the SourceConfigs for all monitored endpoints, and
@@ -117,7 +120,7 @@ func getGCEMetaData(uri string) ([]byte, error) {
 		return nil, fmt.Errorf("Failed request %q for GCE metadata: %v", uri, err)
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := util.ReadWithLimit(resp.Body, maxResponseBodySize)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read body for request %q for GCE metadata: %v", uri, err)
 	}

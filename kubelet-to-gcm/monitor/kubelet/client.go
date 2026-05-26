@@ -19,11 +19,17 @@ package kubelet
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
+	"github.com/GoogleCloudPlatform/k8s-stackdriver/kubelet-to-gcm/monitor/util"
 	stats "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
+)
+
+const (
+	// maxResponseBodySize is the maximum size of the response body we will read.
+	// 50MB should be enough for any Kubelet stats summary response.
+	maxResponseBodySize = 50 * 1024 * 1024
 )
 
 // Client contains all the information and methods to encapsulate
@@ -61,7 +67,7 @@ func (k *Client) doRequestAndUnmarshal(client *http.Client, req *http.Request, v
 		return fmt.Errorf("empty response from kubelet")
 	}
 	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := util.ReadWithLimit(response.Body, maxResponseBodySize)
 	if err != nil {
 		return fmt.Errorf("failed to read response body - %v", err)
 	}
