@@ -65,3 +65,45 @@ func TestReadWithLimit(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeHost(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		input    string
+		expected string
+	}{
+		{
+			desc:     "IPv4",
+			input:    "127.0.0.1",
+			expected: "127.0.0.1",
+		},
+		{
+			desc:     "hostname",
+			input:    "localhost",
+			expected: "localhost",
+		},
+		{
+			desc:     "raw IPv6",
+			input:    "2001:db8::1",
+			expected: "2001:db8::1",
+		},
+		{
+			desc:     "bracketed IPv6",
+			input:    "[2001:db8::1]",
+			expected: "2001:db8::1",
+		},
+		{
+			desc:     "bracketed IPv6 with spaces",
+			input:    " [2001:db8::1] ",
+			expected: "2001:db8::1",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			if got := NormalizeHost(tc.input); got != tc.expected {
+				t.Errorf("NormalizeHost(%q) = %q, want %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
