@@ -111,6 +111,7 @@ func TestFromEvent(t *testing.T) {
 		{
 			desc: "k8s pod event with pod labels",
 			event: &corev1.Event{
+				ObjectMeta:     metav1.ObjectMeta{Namespace: "test_namespace"},
 				Type:           "Normal",
 				InvolvedObject: involvedPodObject,
 				LastTimestamp:  lastTimestamp,
