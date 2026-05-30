@@ -79,7 +79,7 @@ func (a *AltTokenSource) token() (*oauth2.Token, error) {
 
 // NewAltTokenSource constructs a new alternate token source for generating tokens.
 func NewAltTokenSource(tokenURL, tokenBody string) oauth2.TokenSource {
-	client := oauth2.NewClient(context.Background(), google.ComputeTokenSource(""))
+	client := newAltTokenHTTPClient(google.ComputeTokenSource(""))
 	a := &AltTokenSource{
 		oauthClient: client,
 		tokenURL:    tokenURL,
@@ -87,4 +87,12 @@ func NewAltTokenSource(tokenURL, tokenBody string) oauth2.TokenSource {
 		throttle:    flowcontrol.NewTokenBucketRateLimiter(tokenURLQPS, tokenURLBurst),
 	}
 	return oauth2.ReuseTokenSource(nil, a)
+}
+
+func newAltTokenHTTPClient(source oauth2.TokenSource) *http.Client {
+	client := oauth2.NewClient(context.Background(), source)
+	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	return client
 }
