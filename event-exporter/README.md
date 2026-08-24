@@ -37,6 +37,14 @@ Event exporter has following options:
     Parameters for configuring sink
 ```
 
+Environment variables:
+
+```
+PPROF_SERVER_PORT string
+    Port on which to expose Go pprof HTTP profiling handler (e.g. "11123" or ":11123").
+    When unset, pprof server is disabled.
+```
+
 Set of flags for configuring sink is the following:
 
 ```
