@@ -17,9 +17,11 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
@@ -36,6 +38,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
+)
+
+const (
+	pprofServerPortEnv = "PPROF_SERVER_PORT"
 )
 
 var (
@@ -140,9 +146,50 @@ func main() {
 
 	// Expose the Prometheus http endpoint
 	go func() {
-		http.Handle("/metrics", promhttp.Handler())
-		glog.Fatalf("Prometheus monitoring failed: %v", http.ListenAndServe(*prometheusEndpoint, nil))
+		promMux := http.NewServeMux()
+		promMux.Handle("/metrics", promhttp.Handler())
+		glog.Fatalf("Prometheus monitoring failed: %v", http.ListenAndServe(*prometheusEndpoint, promMux))
 	}()
 
+	// Start pprof server if PPROF_SERVER_PORT is specified
+	if pprofPort := os.Getenv(pprofServerPortEnv); pprofPort != "" {
+		pprofServer := startPprofServer(pprofPort)
+		if pprofServer != nil {
+			go func() {
+				<-stopCh
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				pprofServer.Shutdown(ctx)
+			}()
+		}
+	}
+
 	eventExporter.Run(stopCh)
+}
+
+func startPprofServer(port string) *http.Server {
+	port = strings.TrimSpace(port)
+	if port == "" {
+		return nil
+	}
+	if !strings.HasPrefix(port, ":") {
+		port = ":" + port
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	server := &http.Server{
+		Addr:    port,
+		Handler: mux,
+	}
+	go func() {
+		glog.Infof("Starting pprof HTTP server on %s", port)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			glog.Errorf("pprof server failed: %v", err)
+		}
+	}()
+	return server
 }
