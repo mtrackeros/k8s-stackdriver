@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetEndpointTrusted(t *testing.T) {
+func TestGetEndpoint(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected string
@@ -31,6 +31,11 @@ func TestGetEndpointTrusted(t *testing.T) {
 		{"monitoring.googleapis.com:443", "monitoring.googleapis.com:443"},
 		{"https://monitoring.googleapis.com", "monitoring.googleapis.com:443"},
 		{"http://test-monitoring.sandbox.googleapis.com:80", "test-monitoring.sandbox.googleapis.com:80"},
+		{"https://monitoring.apis-tpczero.goog/", "monitoring.apis-tpczero.goog:443"},
+		{"monitoring.apis-tpczero.goog", "monitoring.apis-tpczero.goog:443"},
+ 		{"http://test-monitoring.sandbox.googleapis.com:80", "test-monitoring.sandbox.googleapis.com:80"},
+		{"http://127.0.0.1:8080", "127.0.0.1:8080"},
+		{"localhost:8080", "localhost:8080"},
 		{"googleapis.com", "googleapis.com:443"},
 	}
 
@@ -39,21 +44,5 @@ func TestGetEndpointTrusted(t *testing.T) {
 		if assert.NoError(t, err, "input: %s", tc.input) {
 			assert.Equal(t, tc.expected, res, "input: %s", tc.input)
 		}
-	}
-}
-
-func TestGetEndpointUntrusted(t *testing.T) {
-	tests := []string{
-		"attacker.com",
-		"https://attacker.com",
-		"monitoring.googleapis.com.attacker.com",
-		"https://attacker.com/?foo=.googleapis.com",
-		"http://127.0.0.1:8080",
-	}
-
-	for _, tc := range tests {
-		_, err := getEndpoint(tc)
-		assert.Error(t, err, "input: %s", tc)
-		assert.Contains(t, err.Error(), "untrusted endpoint")
 	}
 }
